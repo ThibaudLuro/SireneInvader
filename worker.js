@@ -4,11 +4,41 @@ import Etablissement from './model.js';
 
 // MongoDB Connection
 mongoose.connect('mongodb://localhost:27017/sirene').then(() => {
+    let pause = false;
+
+    process.on('message', function ({ data }) {
+        const { cmd } = data;
+        switch (cmd) {
+            case 'pause':
+                pause = true;
+                break;
+
+            case 'resume':
+                pause = false;
+                break;
+
+            default:
+                sendDataToMaster({ cmd: 'error', reason: 'unknown command ' + cmd });
+                sendDataToMaster({ cmd: 'error', reason: packet });
+                break;
+        }
+    });
+
     function sendDataToMaster(packet) {
         process.send({
             type: 'process:msg',
             data: packet,
         });
+    }
+
+    function sleep(timeoutMs) {
+        return new Promise((resolve) => setTimeout(resolve, timeoutMs));
+    }
+
+    async function waitForResume() {
+        while (pause) {
+            await sleep(1000);
+        }
     }
 
     function parseCsvLine(line) {
@@ -27,6 +57,9 @@ mongoose.connect('mongodb://localhost:27017/sirene').then(() => {
 
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i]) continue;
+            
+            await waitForResume();
+
             const data = parseCsvLine(lines[i]);
             const recordData = {};
             indexes.forEach((index, idx) => {
@@ -46,9 +79,9 @@ mongoose.connect('mongodb://localhost:27017/sirene').then(() => {
             const result = await Etablissement.bulkWrite(operations, { ordered: false });
             const endTime = Date.now();
             const totalTime = endTime - startTime;
-            sendDataToMaster({cmd: 'fileDone', filename: file, timeMs: totalTime});
+            sendDataToMaster({ cmd: 'fileDone', filename: file, timeMs: totalTime });
         } else {
-            sendDataToMaster({cmd: 'error', reason: file});
+            sendDataToMaster({ cmd: 'error', reason: file });
         }
     }
 
@@ -62,7 +95,7 @@ mongoose.connect('mongodb://localhost:27017/sirene').then(() => {
             await indexFile(file, indexes, neededFields);
         }
 
-        sendDataToMaster({cmd: 'workerDone'});
+        sendDataToMaster({ cmd: 'workerDone' });
         mongoose.disconnect();
     })();
 

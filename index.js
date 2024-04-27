@@ -88,6 +88,31 @@ async function main() {
             }
         });
     });
+
+    function sendCommandToWorker(command, id) {
+        pm2.sendDataToProcessId({
+            id: id,
+            type: 'process:msg',
+            data: {
+                cmd: command,
+            },
+            topic: true,
+        }, () => { });
+    }
+
+    function sendCommandToWorkers(command) {
+        pm2.list((err, apps) => {
+            apps.forEach((app) => sendCommandToWorker(command, app.pm_id));
+        });
+    }
+
+    function pauseWorkers() {
+        sendCommandToWorkers('pause');
+    }
+
+    function resumeWorkers() {
+        sendCommandToWorkers('resume');
+    }
 }
 
 main().catch(console.error);
