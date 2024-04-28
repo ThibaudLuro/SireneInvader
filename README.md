@@ -72,3 +72,10 @@ Pour démarrer l'application, utilisez la commande suivante avec PM2 :
 ```bash
 pm2 start process.json
 ```
+
+## Documentation additionnelle
+
+Plusieurs documents permettant une meilleure compréhension du programme sont disponibles dans le dossier `docs` :
+
+- `Diagramme d'activité UML`
+- `Schéma du processus d'indexation`
